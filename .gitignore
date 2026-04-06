@@ -1,0 +1,27 @@
+# Python virtual environments (Folder venv lokal)
+.venv/
+venv/
+env/
+bin/
+obj/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Streamlit secrets & config (Penting agar password DB tidak bocor)
+.streamlit/secrets.toml
+.streamlit/config.toml
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Database local (Jika ada sqlite atau log)
+*.db
+*.log
+
+# Folder metadata IDE
+.vscode/
+.idea/
