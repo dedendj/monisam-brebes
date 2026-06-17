@@ -53,14 +53,7 @@ def init_db_otomatis():
     with sqlite3.connect('sampah.db') as conn:
         cursor = conn.cursor()
         
-        # ⚠️ LANGKAH DARURAT: Hapus tabel users lama yang strukturnya cacat/tidak lengkap
-        try:
-            cursor.execute("DROP TABLE IF EXISTS users")
-            conn.commit()
-        except Exception:
-            pass
-            
-        # 1. Membuat tabel BARU dengan struktur kolom yang 100% LENGKAP & BERSIH
+        # 1. Membuat tabel HANYA JIKA BELUM ADA (Aman untuk file DB dari PC Lokal)
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,10 +70,10 @@ def init_db_otomatis():
         """)
         conn.commit()
         
-        # 2. Membuat Akun Admin Dinas LH Resmi Sesuai Kredensial Lama Anda
+        # 2. CEK DAHULU: Jika username 'dinas_lh' sudah ada di database dari PC, JANGAN INSERT LAGI!
         cursor.execute("SELECT * FROM users WHERE username = 'dinas_lh'")
         if not cursor.fetchone():
-            # Menggunakan password asli Anda: 'lh2026!' dan di-hash dengan Bcrypt secara aman
+            # Kode ini hanya berjalan jika database benar-benar kosong kosong
             password_resmi = "lh2026!".encode('utf-8')
             hashed_password = bcrypt.hashpw(password_resmi, bcrypt.gensalt()).decode('utf-8')
             
@@ -92,13 +85,13 @@ def init_db_otomatis():
                 'Admin Dinas LH', 
                 hashed_password, 
                 'admin_lh', 
-                '198501012010011001',        # NIP/ID default (bisa Anda edit nanti di menu profil)
-                '08123456789',               # No HP default
-                'Kantor DLH Kabupaten Brebes', # Alamat instansi
+                '198501012010011001',        
+                '08123456789',               
+                'Kantor DLH Kabupaten Brebes'
             ))
             conn.commit()
 
-# Jalankan fungsi pembentuk database bersih
+# Jalankan fungsi pembentuk database
 init_db_otomatis()
 def register_user_with_pending(username, nama, password, role, nip_atau_id, no_hp, alamat):
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
