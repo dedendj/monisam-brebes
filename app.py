@@ -53,7 +53,7 @@ def init_db_otomatis():
     with sqlite3.connect('sampah.db') as conn:
         cursor = conn.cursor()
         
-        # 1. Pastikan tabel users dasar ada (jika file DB benar-benar kosong)
+        # 1. Pastikan tabel users dasar ada
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,8 +62,7 @@ def init_db_otomatis():
         """)
         conn.commit()
         
-        # 2. 🛡️ MIGRASI TOTAL SEMUA KOLOM KRUSIAL (Mencegah OperationalError saat Login & Daftar)
-        # Sistem akan mengecek satu per satu, jika belum ada di DB PC Lokal Anda, akan ditambahkan.
+        # 2. Migrasi kolom wajib (jika ada yang kurang)
         semua_kolom_wajib = [
             ("password_hash", "TEXT"),
             ("role", "TEXT"),
@@ -80,27 +79,29 @@ def init_db_otomatis():
                 cursor.execute(f"ALTER TABLE users ADD COLUMN {nama_kolom} {tipe_kolom}")
                 conn.commit()
             except sqlite3.OperationalError:
-                # Jika error, artinya kolom sudah ada di DB bawaan PC Anda. Lewati dengan aman.
                 pass
         
-        # 3. CEK DAN BUAT AKUN ADMIN UTAMA JIKA BELUM ADA
-        cursor.execute("SELECT * FROM users WHERE username = 'dinas_lh'")
-        if not cursor.fetchone():
-            password_resmi = "lh2026!".encode('utf-8')
-            hashed_password = bcrypt.hashpw(password_resmi, bcrypt.gensalt()).decode('utf-8')
-            
+        # 3. 🛡️ AMANKAN DATA ADMIN: Buat baru jika belum ada, ATAU paksa reset password jika isinya kosong/corrupt
+        password_resmi = "lh2026!".encode('utf-8')
+        hashed_password = bcrypt.hashpw(password_resmi, bcrypt.gensalt()).decode('utf-8')
+        
+        cursor.execute("SELECT password_hash FROM users WHERE username = 'dinas_lh'")
+        user_eksisting = cursor.fetchone()
+        
+        if not user_eksisting:
+            # Jika user dinas_lh belum ada sama sekali di DB lokal, buat baru
             cursor.execute("""
                 INSERT INTO users (username, nama_lengkap, password_hash, role, nip_atau_id, no_hp, alamat, status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'approved')
-            """, (
-                'dinas_lh', 
-                'Admin Dinas LH', 
-                hashed_password, 
-                'admin_lh', 
-                '198501012010011001', 
-                '08123456789', 
-                'Kantor DLH Kabupaten Brebes'
-            ))
+            """, ('dinas_lh', 'Admin Dinas LH', hashed_password, 'admin_lh', '198501012010011001', '08123456789', 'Kantor DLH Kabupaten Brebes'))
+            conn.commit()
+        elif user_eksisting[0] is None or user_eksisting[0] == "":
+            # 💡 INI PENYELAMATNYA: Jika user dinas_lh ada dari PC lokal tapi password_hash-nya KOSONG (None), paksa suntik password baru!
+            cursor.execute("""
+                UPDATE users 
+                SET password_hash = ?, role = ?, status = ?, nama_lengkap = ? 
+                WHERE username = 'dinas_lh'
+            """, (hashed_password, 'admin_lh', 'approved', 'Admin Dinas LH'))
             conn.commit()
 
 # Jalankan fungsi perbaikan database otomatis
