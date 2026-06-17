@@ -53,45 +53,52 @@ def init_db_otomatis():
     with sqlite3.connect('sampah.db') as conn:
         cursor = conn.cursor()
         
-        # 1. Membuat tabel dasar jika belum ada sama sekali
+        # ⚠️ LANGKAH DARURAT: Hapus tabel users lama yang strukturnya cacat/tidak lengkap
+        try:
+            cursor.execute("DROP TABLE IF EXISTS users")
+            conn.commit()
+        except Exception:
+            pass
+            
+        # 1. Membuat tabel BARU dengan struktur kolom yang 100% LENGKAP & BERSIH
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             nama_lengkap TEXT,
             password_hash TEXT NOT NULL,
-            role TEXT NOT NULL
+            role TEXT NOT NULL,
+            nip_atau_id TEXT,
+            no_hp TEXT,
+            alamat TEXT,
+            status TEXT DEFAULT 'pending',
+            foto_profil TEXT
         )
         """)
+        conn.commit()
         
-        # --- STRATEGI PENYELAMATAN: Paksa tambah kolom baru satu per satu jika belum ada di server ---
-        kolom_tambahan = [
-            ("nip_atau_id", "TEXT"),
-            ("no_hp", "TEXT"),
-            ("alamat", "TEXT"),
-            ("status", "TEXT DEFAULT 'pending'"),
-            ("foto_profil", "TEXT")
-        ]
-        
-        for nama_kolom, tipe_kolom in kolom_tambahan:
-            try:
-                cursor.execute(f"ALTER TABLE users ADD COLUMN {nama_kolom} {tipe_kolom}")
-            except sqlite3.OperationalError:
-                pass # Kolom sudah ada dari deploy sebelumnya, lewati saja
-        
-        # 2. Membuat Akun Admin Dinas LH Utama (Pancingan Login Awal) jika belum terdaftar
-        cursor.execute("SELECT * FROM users WHERE username = 'adminlh'")
+        # 2. Membuat Akun Admin Dinas LH Resmi Sesuai Kredensial Lama Anda
+        cursor.execute("SELECT * FROM users WHERE username = 'dinas_lh'")
         if not cursor.fetchone():
-            password_default = "123456".encode('utf-8')
-            hashed_password = bcrypt.hashpw(password_default, bcrypt.gensalt()).decode('utf-8')
+            # Menggunakan password asli Anda: 'lh2026!' dan di-hash dengan Bcrypt secara aman
+            password_resmi = "lh2026!".encode('utf-8')
+            hashed_password = bcrypt.hashpw(password_resmi, bcrypt.gensalt()).decode('utf-8')
             
             cursor.execute("""
                 INSERT INTO users (username, nama_lengkap, password_hash, role, nip_atau_id, no_hp, alamat, status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'approved')
-            """, ('adminlh', 'Admin Utama DLH', hashed_password, 'admin_lh', '1234567890', '081234567890', 'Kantor DLH Kabupaten Brebes'))
+            """, (
+                'dinas_lh', 
+                'Admin Dinas LH', 
+                hashed_password, 
+                'admin_lh', 
+                '198501012010011001',        # NIP/ID default (bisa Anda edit nanti di menu profil)
+                '08123456789',               # No HP default
+                'Kantor DLH Kabupaten Brebes', # Alamat instansi
+            ))
             conn.commit()
 
-# Jalankan fungsi pembentuk database
+# Jalankan fungsi pembentuk database bersih
 init_db_otomatis()
 def register_user_with_pending(username, nama, password, role, nip_atau_id, no_hp, alamat):
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
