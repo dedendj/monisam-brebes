@@ -57,16 +57,16 @@ def init_db_otomatis():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL
+            username TEXT UNIQUE NOT NULL
         )
         """)
         conn.commit()
         
-        # 2. 🛡️ MIGRASI TOTAL: Periksa dan paksa tambah SEMUA kolom yang dibutuhkan aplikasi MoniSam
-        # Ini akan memperbaiki file sampah.db dari PC lokal Anda tanpa menghapus data di dalamnya
+        # 2. 🛡️ MIGRASI TOTAL SEMUA KOLOM KRUSIAL (Mencegah OperationalError saat Login & Daftar)
+        # Sistem akan mengecek satu per satu, jika belum ada di DB PC Lokal Anda, akan ditambahkan.
         semua_kolom_wajib = [
+            ("password_hash", "TEXT"),
+            ("role", "TEXT"),
             ("nama_lengkap", "TEXT"),
             ("nip_atau_id", "TEXT"),
             ("no_hp", "TEXT"),
@@ -80,7 +80,7 @@ def init_db_otomatis():
                 cursor.execute(f"ALTER TABLE users ADD COLUMN {nama_kolom} {tipe_kolom}")
                 conn.commit()
             except sqlite3.OperationalError:
-                # Jika error, berarti kolom sudah ada di DB PC lokal Anda. Lewati dengan aman.
+                # Jika error, artinya kolom sudah ada di DB bawaan PC Anda. Lewati dengan aman.
                 pass
         
         # 3. CEK DAN BUAT AKUN ADMIN UTAMA JIKA BELUM ADA
