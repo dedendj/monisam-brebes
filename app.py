@@ -53,27 +53,38 @@ def init_db_otomatis():
     with sqlite3.connect('sampah.db') as conn:
         cursor = conn.cursor()
         
-        # 1. Membuat tabel HANYA JIKA BELUM ADA (Aman untuk file DB dari PC Lokal)
+        # 1. Pastikan tabel users dasar sudah ada
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             nama_lengkap TEXT,
             password_hash TEXT NOT NULL,
-            role TEXT NOT NULL,
-            nip_atau_id TEXT,
-            no_hp TEXT,
-            alamat TEXT,
-            status TEXT DEFAULT 'pending',
-            foto_profil TEXT
+            role TEXT NOT NULL
         )
         """)
         conn.commit()
         
-        # 2. CEK DAHULU: Jika username 'dinas_lh' sudah ada di database dari PC, JANGAN INSERT LAGI!
+        # 2. 🛡️ AMANKAN STRUKTUR: Paksa tambah kolom baru jika file dari PC lokal belum memilikinya
+        kolom_migrasi = [
+            ("nip_atau_id", "TEXT"),
+            ("no_hp", "TEXT"),
+            ("alamat", "TEXT"),
+            ("status", "TEXT DEFAULT 'pending'"),
+            ("foto_profil", "TEXT")
+        ]
+        
+        for nama_kolom, tipe_kolom in kolom_migrasi:
+            try:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {nama_kolom} {tipe_kolom}")
+                conn.commit()
+            except sqlite3.OperationalError:
+                # Jika error, berarti kolom sudah ada di DB PC lokal Anda. Amankan proses, lewati saja.
+                pass
+        
+        # 3. CEK DAN BUAT AKUN DEFAULT JIKA DATABASE BENAR-BENAR KOSONG
         cursor.execute("SELECT * FROM users WHERE username = 'dinas_lh'")
         if not cursor.fetchone():
-            # Kode ini hanya berjalan jika database benar-benar kosong kosong
             password_resmi = "lh2026!".encode('utf-8')
             hashed_password = bcrypt.hashpw(password_resmi, bcrypt.gensalt()).decode('utf-8')
             
@@ -81,13 +92,8 @@ def init_db_otomatis():
                 INSERT INTO users (username, nama_lengkap, password_hash, role, nip_atau_id, no_hp, alamat, status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'approved')
             """, (
-                'dinas_lh', 
-                'Admin Dinas LH', 
-                hashed_password, 
-                'admin_lh', 
-                '198501012010011001',        
-                '08123456789',               
-                'Kantor DLH Kabupaten Brebes'
+                'dinas_lh', 'Admin Dinas LH', hashed_password, 'admin_lh', 
+                '198501012010011001', '08123456789', 'Kantor DLH Kabupaten Brebes'
             ))
             conn.commit()
 
