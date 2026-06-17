@@ -42,3 +42,5 @@ watchdog==6.0.0
 folium
 streamlit-folium
 psycopg2-binary
+
+bcrypt
