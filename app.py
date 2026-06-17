@@ -46,6 +46,44 @@ def get_list_lokasi():
 # ==============================================================================
 # 2. SISTEM AUTENTIKASI & DATABASE USER (BERBASIS SQLITE)
 # ==============================================================================
+# ==============================================================================
+# SINKRONISASI OTOMATIS: INISIALISASI STRUKTUR TABEL (Taruh di Bagian 2)
+# ==============================================================================
+def init_db_otomatis():
+    with sqlite3.connect('sampah.db') as conn:
+        cursor = conn.cursor()
+        
+        # 1. Membuat tabel jika belum ada dengan kolom lengkap sesuai form registrasi
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            nama_lengkap TEXT,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL,
+            nip_atau_id TEXT,
+            no_hp TEXT,
+            alamat TEXT,
+            status TEXT DEFAULT 'pending',
+            foto_profil TEXT
+        )
+        """)
+        
+        # 2. Membuat Akun Admin Dinas LH Utama (Pancingan Login Awal)
+        cursor.execute("SELECT * FROM users WHERE username = 'adminlh'")
+        if not cursor.fetchone():
+            password_default = "123456".encode('utf-8')
+            hashed_password = bcrypt.hashpw(password_default, bcrypt.gensalt()).decode('utf-8')
+            
+            cursor.execute("""
+                INSERT INTO users (username, nama_lengkap, password_hash, role, nip_atau_id, no_hp, alamat, status) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'approved')
+            """, ('adminlh', 'Admin Utama DLH', hashed_password, 'admin_lh', '1234567890', '081234567890', 'Kantor DLH Kabupaten Brebes'))
+            conn.commit()
+
+# Jalankan fungsi pembentuk database sebelum aplikasi merender komponen UI
+init_db_otomatis()
+
 def register_user_with_pending(username, nama, password, role, nip_atau_id, no_hp, alamat):
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
