@@ -155,10 +155,15 @@ def proses_login(username, password):
     return None
 
 def get_pending_users():
+    # Membuka koneksi baru yang fresh khusus untuk Pandas agar kolom baru langsung terbaca
     with sqlite3.connect('sampah.db') as conn:
-        # Tambahkan kolom no_hp dan alamat ke dalam select query
-        df = pd.read_sql("SELECT id, username, nama_lengkap, role, nip_atau_id, no_hp, alamat FROM users WHERE status = 'pending'", conn)
-    return df.values.tolist()
+        try:
+            query = "SELECT id, username, nama_lengkap, role, nip_atau_id, no_hp, alamat FROM users WHERE status = 'pending'"
+            df = pd.read_sql(query, conn)
+            return df
+        except Exception as e:
+            # Jika masih sempat membaca cache lama, kembalikan dataframe kosong agar aplikasi tidak crash
+            return pd.DataFrame(columns=['id', 'username', 'nama_lengkap', 'role', 'nip_atau_id', 'no_hp', 'alamat'])
     
 def get_active_operators():
     with sqlite3.connect('sampah.db') as conn:
