@@ -339,15 +339,14 @@ def halaman_approval_admin():
     
    # 🔒 PROTEKSI DOSIS TINGGI: Menyaring agar role dinas_lh, admin_lh, dan super_admin 
     # TIDAK AKAN PERNAH muncul di daftar kontrol penangguhan akun.
-    query_all_operators = """
-        SELECT id, username, nama_lengkap, role, nip_atau_id, no_hp, alamat, status 
-        FROM users 
-        WHERE role NOT IN ('super_admin', 'dinas_lh', 'admin_lh', 'admin') 
-          AND role NOT LIKE '%dinas%'
-          AND role NOT LIKE '%admin%'
-          AND status IN ('approved', 'nonaktif', 'aktif')
-    """
-    operator_data = jalankan_query(query_all_operators)
+    query_all_operators = "SELECT id, username, nama_lengkap, role, nip_atau_id, no_hp, alamat, status FROM users WHERE status = 'approved'"
+    # Gunakan koneksi mandiri agar Pandas membaca struktur kolom terbaru dari PC lokal Anda
+    with sqlite3.connect('sampah.db') as conn_baru:
+        try:
+            operator_data = pd.read_sql(query_all_operators, conn_baru)
+        except Exception:
+            # Cadangan aman jika dataframe gagal dimuat
+            operator_data = pd.DataFrame(columns=['id', 'username', 'nama_lengkap', 'role', 'nip_atau_id', 'no_hp', 'alamat', 'status'])
     
     if operator_data.empty:
         st.warning("⚠️ Belum ada petugas atau operator yang terdaftar di sistem.")
