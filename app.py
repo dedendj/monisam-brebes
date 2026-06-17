@@ -53,23 +53,33 @@ def init_db_otomatis():
     with sqlite3.connect('sampah.db') as conn:
         cursor = conn.cursor()
         
-        # 1. Membuat tabel jika belum ada dengan kolom lengkap sesuai form registrasi
+        # 1. Membuat tabel dasar jika belum ada sama sekali
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             nama_lengkap TEXT,
             password_hash TEXT NOT NULL,
-            role TEXT NOT NULL,
-            nip_atau_id TEXT,
-            no_hp TEXT,
-            alamat TEXT,
-            status TEXT DEFAULT 'pending',
-            foto_profil TEXT
+            role TEXT NOT NULL
         )
         """)
         
-        # 2. Membuat Akun Admin Dinas LH Utama (Pancingan Login Awal)
+        # --- STRATEGI PENYELAMATAN: Paksa tambah kolom baru satu per satu jika belum ada di server ---
+        kolom_tambahan = [
+            ("nip_atau_id", "TEXT"),
+            ("no_hp", "TEXT"),
+            ("alamat", "TEXT"),
+            ("status", "TEXT DEFAULT 'pending'"),
+            ("foto_profil", "TEXT")
+        ]
+        
+        for nama_kolom, tipe_kolom in kolom_tambahan:
+            try:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {nama_kolom} {tipe_kolom}")
+            except sqlite3.OperationalError:
+                pass # Kolom sudah ada dari deploy sebelumnya, lewati saja
+        
+        # 2. Membuat Akun Admin Dinas LH Utama (Pancingan Login Awal) jika belum terdaftar
         cursor.execute("SELECT * FROM users WHERE username = 'adminlh'")
         if not cursor.fetchone():
             password_default = "123456".encode('utf-8')
@@ -81,9 +91,8 @@ def init_db_otomatis():
             """, ('adminlh', 'Admin Utama DLH', hashed_password, 'admin_lh', '1234567890', '081234567890', 'Kantor DLH Kabupaten Brebes'))
             conn.commit()
 
-# Jalankan fungsi pembentuk database sebelum aplikasi merender komponen UI
+# Jalankan fungsi pembentuk database
 init_db_otomatis()
-
 def register_user_with_pending(username, nama, password, role, nip_atau_id, no_hp, alamat):
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
