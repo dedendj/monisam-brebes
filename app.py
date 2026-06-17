@@ -304,7 +304,7 @@ def halaman_approval_admin():
     st.subheader("👥 Verifikasi & Persetujuan Akun Operator Baru")
     pendaftar_pending = get_pending_users()
     
-    if not pendaftar_pending:
+    if pendaftar_pending.empty:
         st.info("ℹ️ Tidak ada pengajuan akun baru saat ini.")
     else:
         for user in pendaftar_pending:
