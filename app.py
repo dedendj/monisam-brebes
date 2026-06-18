@@ -1024,10 +1024,10 @@ else:
                                 df_csv['tipe'] = df_csv['tipe'].astype(str).str.strip()
                 
                                 # [PERBAIKAN 4] MENJINAKKAN TANDA PETIK SATU (') DI KOLOM LAT & LON
-                                # Mengubah data ke string, membuang tanda petik satu di awal/akhir, lalu dikonversi paksa menjadi angka desimal murni
-                                df_csv['lat'] = df_csv['lat'].astype(str).str.replace("'", "", sys=False).str.replace('"', '', sys=False).str.strip()
-                                df_csv['lon'] = df_csv['lon'].astype(str).str.replace("'", "", sys=False).str.replace('"', '', sys=False).str.strip()
-                
+                                # Mengubah data ke string, membuang tanda petik satu atau dua, lalu dikonversi menjadi angka desimal
+                                df_csv['lat'] = df_csv['lat'].astype(str).str.replace("'", "", regex=False).str.replace('"', '', regex=False).str.strip()
+                                df_csv['lon'] = df_csv['lon'].astype(str).str.replace("'", "", regex=False).str.replace('"', '', regex=False).str.strip()
+
                                 df_csv['lat'] = pd.to_numeric(df_csv['lat'], errors='coerce')
                                 df_csv['lon'] = pd.to_numeric(df_csv['lon'], errors='coerce')
                 
