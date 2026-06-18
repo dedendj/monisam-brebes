@@ -1006,13 +1006,34 @@ else:
                         try:
                             # Membaca data CSV
                             import pandas as pd
-                            df_csv = pd.read_csv(uploaded_file)
-                            
+                            # [PERBAIKAN 1] Menggunakan sep=None & engine='python' agar otomatis mengenali pembatas koma (,) atau titik koma (;) dari Excel
+                            df_csv = pd.read_csv(uploaded_file, sep=None, engine='python')
+            
+                            # [PERBAIKAN 2] Bersihkan spasi atau karakter BOM (\ufeff) tersembunyi pada nama kolom, lalu paksa huruf kecil semua
+                            df_csv.columns = df_csv.columns.str.replace(r'^\ufeff', '', regex=True).str.strip().str.lower()
+                                                        
                             # Validasi nama kolom wajib
                             kolom_wajib = {'nama_unit', 'kecamatan', 'tipe', 'lat', 'lon'}
                             if not kolom_wajib.issubset(df_csv.columns):
-                                st.error("❌ Format kolom salah! Gunakan nama kolom: nama_unit, kecamatan, tipe, lat, lon")
+                                st.error(f"❌ Format kolom salah! Kolom terdeteksi: {list(df_csv.columns)}")
+                                st.info("Pastikan nama kolom pada baris pertama adalah: nama_unit, kecamatan, tipe, lat, lon")
                             else:
+                                # [PERBAIKAN 3] Bersihkan data teks umum dari spasi luar
+                                df_csv['nama_unit'] = df_csv['nama_unit'].astype(str).str.strip()
+                                df_csv['kecamatan'] = df_csv['kecamatan'].astype(str).str.strip()
+                                df_csv['tipe'] = df_csv['tipe'].astype(str).str.strip()
+                
+                                # [PERBAIKAN 4] MENJINAKKAN TANDA PETIK SATU (') DI KOLOM LAT & LON
+                                # Mengubah data ke string, membuang tanda petik satu di awal/akhir, lalu dikonversi paksa menjadi angka desimal murni
+                                df_csv['lat'] = df_csv['lat'].astype(str).str.replace("'", "", sys=False).str.replace('"', '', sys=False).str.strip()
+                                df_csv['lon'] = df_csv['lon'].astype(str).str.replace("'", "", sys=False).str.replace('"', '', sys=False).str.strip()
+                
+                                df_csv['lat'] = pd.to_numeric(df_csv['lat'], errors='coerce')
+                                df_csv['lon'] = pd.to_numeric(df_csv['lon'], errors='coerce')
+                
+                                # Hapus baris jika ada koordinat yang gagal dikonversi (misal baris kosong)
+                                df_csv = df_csv.dropna(subset=['lat', 'lon'])
+            
                                 st.write("👀 **Pratinjau Data CSV:**")
                                 st.dataframe(df_csv, use_container_width=True)
                                 
