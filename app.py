@@ -9,6 +9,46 @@ import bcrypt  # Pastikan sudah install: pip install bcrypt
 import folium
 from streamlit_folium import st_folium
 
+def render_ikhtisar_sampah():
+    """Fungsi helper untuk menampilkan KPI ringkasan sampah di atas peta"""
+    st.markdown("#### 📊 Ikhtisar Pengelolaan Sampah Kabupaten Brebes")
+    
+    # Kueri data agregat
+    df_summary = jalankan_query("SELECT COUNT(id) as total_laporan, SUM(berat_kg) as total_berat FROM laporan")
+    df_kategori = jalankan_query("SELECT kategori, SUM(berat_kg) as berat FROM laporan GROUP BY kategori")
+    df_lokasi_count = jalankan_query("SELECT COUNT(id) as total_lokasi FROM lokasi")
+    
+    # Ekstraksi variabel utama
+    total_laporan = df_summary['total_laporan'].iloc[0] if not df_summary.empty else 0
+    total_berat_kg = df_summary['total_berat'].iloc[0] if not df_summary.empty and df_summary['total_berat'].iloc[0] is not None else 0
+    total_berat_ton = total_berat_kg / 1000.0
+    total_lokasi = df_lokasi_count['total_lokasi'].iloc[0] if not df_lokasi_count.empty else 0
+    
+    # Distribusi kategori
+    organik, anorganik, residu = 0, 0, 0
+    if not df_kategori.empty:
+        for _, row in df_kategori.iterrows():
+            if row['kategori'] == 'Organik': organik = row['berat']
+            elif row['kategori'] == 'Anorganik': anorganik = row['berat']
+            elif row['kategori'] == 'Residu/B3' or 'Residu' in str(row['kategori']): residu = row['berat']
+            
+    # Render Baris 1: Ringkasan Makro
+    col_m1, col_m2, col_m3 = st.columns(3)
+    with col_m1:
+        st.metric(label="♻️ Total Sampah Terkelola", value=f"{total_berat_ton:,.2f} Ton")
+    with col_m2:
+        st.metric(label="📍 Unit Infrastruktur Aktif", value=f"{total_lokasi} Titik")
+    with col_m3:
+        st.metric(label="📋 Total Laporan Masuk", value=f"{total_laporan} Data")
+        
+    # Render Baris 2: Komposisi Jenis Sampah
+    st.markdown("<small style='color:gray;'><b>🗂️ Komposisi Sampah Berdasarkan Jenis:</b></small>", unsafe_allow_html=True)
+    col_c1, col_c2, col_c3 = st.columns(3)
+    with col_c1: st.metric(label="🍏 Organik", value=f"{organik:,.1f} Kg")
+    with col_c2: st.metric(label="🍾 Anorganik", value=f"{anorganik:,.1f} Kg")
+    with col_c3: st.metric(label="🚨 Residu / B3", value=f"{residu:,.1f} Kg")
+    st.write("---")
+    
 # ==============================================================================
 # INISIALISASI STREAMLIT SESSION STATE (Taruh di bagian paling atas app.py)
 # ==============================================================================
@@ -762,6 +802,10 @@ elif not st.session_state['auth']:
             with tabs[i]:
                 # 📝 DISESUAIKAN: Judul subheader mencakup infrastruktur baru
                 st.subheader("📍 Peta Sebaran Lokasi Infrastruktur & Bank Sampah Kabupaten Brebes")
+
+                # 🌟 SISIPKAN DI SINI (Kondisi Belum Login)
+                render_ikhtisar_sampah()
+                
                 df_peta = jalankan_query("""
                     SELECT l.nama_unit, l.lat, l.lon, l.tipe, l.kecamatan,
                     COALESCE(SUM(lap.berat_kg), 0) / 1000.0 as total_ton
@@ -876,6 +920,10 @@ else:
             with tabs[i]:
                 # Update judul subheader agar mencakup Bank Sampah
                 st.subheader("📍 Peta Sebaran Lokasi Infrastruktur & Bank Sampah Kabupaten Brebes")
+                
+                # 🌟 SISIPKAN DI SINI (Kondisi Sudah Login)
+                render_ikhtisar_sampah()
+                
                 df_peta = jalankan_query("""
                     SELECT l.nama_unit, l.lat, l.lon, l.tipe, l.kecamatan,
                     COALESCE(SUM(lap.berat_kg), 0) / 1000.0 as total_ton
