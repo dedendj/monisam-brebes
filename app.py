@@ -307,8 +307,7 @@ def halaman_approval_admin():
     if pendaftar_pending.empty:
         st.info("ℹ️ Tidak ada pengajuan akun baru saat ini.")
     else:
-        # [PERBAIKAN UTAMA] Menggunakan .values agar looping membaca baris data, bukan nama kolom
-        for user in pendaftar_pending.values:
+        for user in pendaftar_pending:
             u_id, u_username, u_nama, u_role, u_nip, u_no_hp, u_alamat = user
             
             tampilan_hp = u_no_hp if u_no_hp else "Tidak dicantumkan (Akun Lama)"
