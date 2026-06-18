@@ -402,7 +402,7 @@ def halaman_approval_admin():
     # BAGIAN B: KENDALI STATUS & DAFTAR OPERATOR (AKTIF & NON-AKTIF)
     # ==========================================================================
     st.write("#") 
-    st.subheader("🗂️ Kontrol Status & Daftar Operator MoniSa")
+    st.subheader("🗂️ Kendali Status & Daftar Operator MoniSa")
     
    # 🔒 PROTEKSI DOSIS TINGGI: Menyaring agar role dinas_lh, admin_lh, dan super_admin 
     # TIDAK AKAN PERNAH muncul di daftar kontrol penangguhan akun.
