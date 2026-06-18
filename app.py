@@ -954,7 +954,8 @@ else:
                             kategori = st.selectbox("Kategori Sampah", ["Organik", "Anorganik", "Residu/B3"])
                             berat = st.number_input("Berat Masuk (Kg)", min_value=0.0, step=1.0)
                         
-                        uploaded_file = st.file_uploader("📷 Ambil Foto Kondisi TPS", type=["jpg", "png", "jpeg"])
+                        # Label diubah untuk menginformasikan batas maksimal ukuran
+                        uploaded_file = st.file_uploader("📷 Ambil Foto Kondisi TPS (Maksimal 1 MB)", type=["jpg", "png", "jpeg"])
                         submit = st.form_submit_button("Simpan Laporan & Foto")
                         
                         if submit:
@@ -963,6 +964,15 @@ else:
                             elif uploaded_file is None:
                                 st.error("⚠️ Wajib mengunggah foto kondisi TPS!")
                             else:
+                                # ==================================================================
+                                # VALDASI UKURAN FILE: Batasi Maksimal 1 MB
+                                # ==================================================================
+                                ukuran_file_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
+                                
+                                if ukuran_file_mb > 1.0:
+                                    st.error(f"❌ Ukuran file foto terlalu besar ({ukuran_file_mb:.2f} MB)! Maksimal ukuran yang diperbolehkan adalah 1.00 MB. Silakan kecilkan resolusi kamera Anda.")
+                                else:
+                                # Jika lolos validasi ukuran, kueri database dilanjutkan
                                 conn = sqlite3.connect('sampah.db')
                                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                                 nama_foto_baru = f"{lokasi_pilih}_{kategori}_{timestamp}.jpg"
