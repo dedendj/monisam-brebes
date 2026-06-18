@@ -53,43 +53,52 @@ def init_db_otomatis():
     with sqlite3.connect('sampah.db') as conn:
         cursor = conn.cursor()
         
-        # 1. Pastikan tabel users dasar ada
+        # 1. Buat tabel user baru sementara dengan struktur ID Auto-Increment yang sempurna
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS users_baru (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT,
+            role TEXT,
+            nama_lengkap TEXT,
+            nip_atau_id TEXT,
+            no_hp TEXT,
+            alamat TEXT,
+            status TEXT DEFAULT 'pending',
+            foto_profil TEXT
         )
         """)
         conn.commit()
-
-        # [PERBAIKAN UTAMA]: Migrasi kolom ID jika tabel lama belum memilikinya
+        
+        # 2. Migrasi data dari tabel lama jika tabel 'users' sudah pernah ada sebelumnya
         try:
-            cursor.execute("ALTER TABLE users ADD COLUMN id INTEGER PRIMARY KEY AUTOINCREMENT")
+            # Cek apakah tabel users lama ada isinya
+            cursor.execute("SELECT username, password_hash, role, nama_lengkap, nip_atau_id, no_hp, alamat, status, foto_profil FROM users")
+            users_lama = cursor.fetchall()
+            
+            # Pindahkan data lama ke tabel baru secara aman
+            for user in users_lama:
+                try:
+                    cursor.execute("""
+                        INSERT OR IGNORE INTO users_baru (username, password_hash, role, nama_lengkap, nip_atau_id, no_hp, alamat, status, foto_profil)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, user)
+                except Exception:
+                    pass
             conn.commit()
         except sqlite3.OperationalError:
-            # Mengabaikan error jika kolom 'id' sudah ada sebelumnya
+            # Jika tabel 'users' lama belum ada, tidak masalah (berarti instalasi pertama)
             pass
-            
-        # 2. Migrasi kolom wajib (jika ada yang kurang)
-        semua_kolom_wajib = [
-            ("password_hash", "TEXT"),
-            ("role", "TEXT"),
-            ("nama_lengkap", "TEXT"),
-            ("nip_atau_id", "TEXT"),
-            ("no_hp", "TEXT"),
-            ("alamat", "TEXT"),
-            ("status", "TEXT DEFAULT 'pending'"),
-            ("foto_profil", "TEXT")
-        ]
+
+        # 3. Hapus tabel lama dan ganti nama tabel baru menjadi 'users'
+        try:
+            cursor.execute("DROP TABLE IF EXISTS users")
+            cursor.execute("ALTER TABLE users_baru RENAME TO users")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
         
-        for nama_kolom, tipe_kolom in semua_kolom_wajib:
-            try:
-                cursor.execute(f"ALTER TABLE users ADD COLUMN {nama_kolom} {tipe_kolom}")
-                conn.commit()
-            except sqlite3.OperationalError:
-                pass
-        
-        # 3. 🛡️ AMANKAN DATA ADMIN: Buat baru jika belum ada, ATAU paksa reset password jika isinya kosong/corrupt
+        # 4. 🛡️ AMANKAN DATA ADMIN: Buat baru jika belum ada sama sekali
         password_resmi = "lh2026!".encode('utf-8')
         hashed_password = bcrypt.hashpw(password_resmi, bcrypt.gensalt()).decode('utf-8')
         
@@ -97,23 +106,18 @@ def init_db_otomatis():
         user_eksisting = cursor.fetchone()
         
         if not user_eksisting:
-            # Jika user dinas_lh belum ada sama sekali di DB lokal, buat baru
             cursor.execute("""
                 INSERT INTO users (username, nama_lengkap, password_hash, role, nip_atau_id, no_hp, alamat, status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'approved')
             """, ('dinas_lh', 'Admin Dinas LH', hashed_password, 'admin_lh', '198501012010011001', '08123456789', 'Kantor DLH Kabupaten Brebes'))
             conn.commit()
         elif user_eksisting[0] is None or user_eksisting[0] == "":
-            # 💡 INI PENYELAMATNYA: Jika user dinas_lh ada dari PC lokal tapi password_hash-nya KOSONG (None), paksa suntik password baru!
             cursor.execute("""
                 UPDATE users 
                 SET password_hash = ?, role = ?, status = ?, nama_lengkap = ? 
                 WHERE username = 'dinas_lh'
             """, (hashed_password, 'admin_lh', 'approved', 'Admin Dinas LH'))
             conn.commit()
-    except sqlite3.OperationalError:
-            # Berjaga-jaga jika kolom password_hash belum siap saat inisialisasi pertama
-            pass
 # Jalankan fungsi perbaikan database otomatis
 init_db_otomatis()
 def register_user_with_pending(username, nama, password, role, nip_atau_id, no_hp, alamat):
