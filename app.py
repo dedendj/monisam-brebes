@@ -987,7 +987,87 @@ else:
                 st.subheader("⚙️ Manajemen Master Data Lokasi Unit")
                 
                 # ======================================================================
-                # 🟢 TEMPAT MELETAKKAN KODE BARU: FORM TAMBAH LOKASI BARU
+                # 🟢 FITUR BARU: UPLOAD MASSAL DATA LOKASI VIA CSV
+                # ======================================================================
+                with st.expander("📥 Upload Massal Data Lokasi (via CSV)", expanded=False):
+                    st.markdown("""
+                    ##### 📄 Panduan Format CSV:
+                    Buat file di Excel/Google Sheets dengan **5 nama kolom (header)** berikut, lalu simpan sebagai `.csv`:
+                    * `nama_unit` : Nama fasilitas (Contoh: *TPS3R Berhias*)
+                    * `kecamatan` : Harus sesuai daftar kecamatan di Brebes (Contoh: *Brebes, Bulakamba*)
+                    * `tipe`      : Isi dengan: *TPS3R, TPA, TPST, Bank Sampah Induk,* atau *Bank Sampah Unit*
+                    * `lat`       : Koordinat Latitude menggunakan desimal titik (Contoh: *-6.8721*)
+                    * `lon`       : Koordinat Longitude menggunakan desimal titik (Contoh: *109.0421*)
+                    """)
+                    
+                    uploaded_file = st.file_uploader("Pilih file CSV data lokasi", type=["csv"], key="uploader_csv_lokasi")
+                    
+                    if uploaded_file is not None:
+                        try:
+                            # Membaca data CSV
+                            import pandas as pd
+                            df_csv = pd.read_csv(uploaded_file)
+                            
+                            # Validasi nama kolom wajib
+                            kolom_wajib = {'nama_unit', 'kecamatan', 'tipe', 'lat', 'lon'}
+                            if not kolom_wajib.issubset(df_csv.columns):
+                                st.error("❌ Format kolom salah! Gunakan nama kolom: nama_unit, kecamatan, tipe, lat, lon")
+                            else:
+                                st.write("👀 **Pratinjau Data CSV:**")
+                                st.dataframe(df_csv, use_container_width=True)
+                                
+                                btn_simpan_csv = st.button("💾 Konfirmasi & Masukkan Data Massal", type="primary")
+                                if btn_simpan_csv:
+                                    jumlah_sukses = 0
+                                    jumlah_duplikat = 0
+                                    
+                                    with sqlite3.connect('sampah.db') as conn:
+                                        cursor = conn.cursor()
+                                        
+                                        # Pastikan tabel lokasi sudah terbuat
+                                        cursor.execute("""
+                                            CREATE TABLE IF NOT EXISTS lokasi (
+                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                nama_unit TEXT NOT NULL,
+                                                kecamatan TEXT NOT NULL,
+                                                tipe TEXT NOT NULL,
+                                                lat REAL NOT NULL,
+                                                lon REAL NOT NULL
+                                            )
+                                        """)
+                                        
+                                        # Proses looping insert data
+                                        for _, row in df_csv.iterrows():
+                                            nama_clean = str(row['nama_unit']).strip()
+                                            
+                                            # Cek pencegahan data ganda
+                                            cursor.execute("SELECT id FROM lokasi WHERE nama_unit = ?", (nama_clean,))
+                                            if cursor.fetchone() is None:
+                                                cursor.execute("""
+                                                    INSERT INTO lokasi (nama_unit, kecamatan, tipe, lat, lon)
+                                                    VALUES (?, ?, ?, ?, ?)
+                                                """, (nama_clean, str(row['kecamatan']).strip(), str(row['tipe']).strip(), float(row['lat']), float(row['lon'])))
+                                                jumlah_sukses += 1
+                                            else:
+                                                jumlah_duplikat += 1
+                                                
+                                        conn.commit()
+                                    
+                                    # Output notifikasi hasil upload
+                                    if jumlah_sukses > 0:
+                                        st.success(f"🎉 Sukses! Berhasil menambahkan {jumlah_sukses} titik lokasi baru.")
+                                        if jumlah_duplikat > 0:
+                                            st.warning(f"⚠️ {jumlah_duplikat} data dilewati karena nama unit sudah ada di database.")
+                                        st.cache_data.clear()
+                                        st.rerun()
+                                    else:
+                                        st.warning("⚠️ Tidak ada data baru yang masuk. Semua nama unit di CSV sudah terdaftar.")
+                                        
+                        except Exception as e:
+                            st.error(f"❌ Terjadi kesalahan pembacaal file: {e}")
+                
+                # ======================================================================
+                # 🔵 FORM TAMBAH LOKASI MANUALE (BAWAAN ASLI)
                 # ======================================================================
                 with st.expander("➕ Tambah Titik Lokasi Baru (TPA / TPS3R / Bank Sampah)", expanded=False):
                     with st.form("form_tambah_master_lokasi", clear_on_submit=True):
@@ -1030,14 +1110,14 @@ else:
                 df_lokasi_edit = jalankan_query("SELECT id, nama_unit, kecamatan, tipe, lat, lon FROM lokasi")
                 
                 if not df_lokasi_edit.empty:
-                    # 🟢 KUNCI UTAMA: Menyisipkan nomor urut 1, 2, 3... di kolom paling awal
+                    # Menyisipkan nomor urut 1, 2, 3... di kolom paling awal
                     df_lokasi_edit.insert(0, 'No', range(1, len(df_lokasi_edit) + 1))
                     
                     edited_df = st.data_editor(
                         df_lokasi_edit,
                         column_config={
-                            "No": st.column_config.Column("No", width=40, disabled=True), # Tampilkan No Urut
-                            "id": None, # 🔒 MENYEMBUNYIKAN KOLOM ID (Tetap ada di background, tapi tidak terlihat di layar)
+                            "No": st.column_config.Column("No", width=40, disabled=True),
+                            "id": None, # Menyembunyikan kolom ID
                             "nama_unit": st.column_config.Column("Nama Unit/Lokasi"),
                             "kecamatan": st.column_config.SelectboxColumn("Kecamatan", options=LIST_KECAMATAN, required=True),
                             "tipe": st.column_config.SelectboxColumn("Tipe", options=LIST_TIPE, required=True),
@@ -1048,7 +1128,6 @@ else:
                     if st.button("💾 Simpan Perubahan"):
                         with sqlite3.connect('sampah.db') as conn:
                             for index, row in edited_df.iterrows():
-                                # Loop update tetap aman karena 'id' masih tersimpan di background row['id']
                                 conn.execute("UPDATE lokasi SET nama_unit=?, kecamatan=?, tipe=?, lat=?, lon=? WHERE id=?", 
                                              (row['nama_unit'], row['kecamatan'], row['tipe'], row['lat'], row['lon'], row['id']))
                             conn.commit()
