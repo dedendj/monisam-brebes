@@ -972,31 +972,31 @@ else:
                                 if ukuran_file_mb > 1.0:
                                     st.error(f"❌ Ukuran file foto terlalu besar ({ukuran_file_mb:.2f} MB)! Maksimal ukuran yang diperbolehkan adalah 1.00 MB. Silakan kecilkan resolusi kamera Anda.")
                                 else:
-                                # Jika lolos validasi ukuran, kueri database dilanjutkan
-                                conn = sqlite3.connect('sampah.db')
-                                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                                nama_foto_baru = f"{lokasi_pilih}_{kategori}_{timestamp}.jpg"
-                                try:
-                                    conn.execute("""
-                                        INSERT INTO laporan (tanggal, berat_kg, kategori, admin_input, foto_path) 
-                                        VALUES (?, ?, ?, ?, ?)
-                                    """, (tgl, berat, kategori, lokasi_pilih, nama_foto_baru))
-                                    conn.commit()
+                                    # Jika lolos validasi ukuran, kueri database dilanjutkan
+                                    conn = sqlite3.connect('sampah.db')
+                                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                                    nama_foto_baru = f"{lokasi_pilih}_{kategori}_{timestamp}.jpg"
+                                    try:
+                                        conn.execute("""
+                                            INSERT INTO laporan (tanggal, berat_kg, kategori, admin_input, foto_path) 
+                                            VALUES (?, ?, ?, ?, ?)
+                                        """, (tgl, berat, kategori, lokasi_pilih, nama_foto_baru))
+                                        conn.commit()
                                     
-                                    if not os.path.exists("data_foto"):
-                                        os.makedirs("data_foto")
+                                        if not os.path.exists("data_foto"):
+                                            os.makedirs("data_foto")
                                         
-                                    filepath_simpan = os.path.join("data_foto", nama_foto_baru)
-                                    with open(filepath_simpan, "wb") as f:
-                                        f.write(uploaded_file.getvalue())
+                                        filepath_simpan = os.path.join("data_foto", nama_foto_baru)
+                                        with open(filepath_simpan, "wb") as f:
+                                            f.write(uploaded_file.getvalue())
                                         
-                                    st.success(f"✅ Data sampah di {lokasi_pilih} berhasil disimpan!")
-                                    st.cache_data.clear()
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"❌ Gagal menyimpan: {e}")
-                                finally:
-                                    conn.close()
+                                        st.success(f"✅ Data sampah di {lokasi_pilih} berhasil disimpan!")
+                                        st.cache_data.clear()
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"❌ Gagal menyimpan: {e}")
+                                    finally:
+                                        conn.close()
 
                 # --- RIWAYAT INPUT ---
                 st.divider()
