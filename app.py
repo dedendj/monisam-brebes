@@ -1032,7 +1032,23 @@ else:
                 # --- RIWAYAT INPUT ---
                 st.divider()
                 st.subheader("🕒 Riwayat Input Terakhir")
-                df_riwayat = jalankan_query("SELECT id, tanggal, berat_kg, kategori, admin_input as lokasi, foto_path FROM laporan ORDER BY id DESC LIMIT 5")
+                
+                # 1. Ambil informasi user yang sedang login dari session state
+                username_aktif = st.session_state.get('username', '')
+                role_aktif = st.session_state.get('role', '')
+                
+                # 2. Atur kueri SQL berdasarkan hak akses (Role)
+                if role_aktif == 'admin_lh':
+                    # Admin Dinas LH berhak melihat seluruh data masuk terbaru
+                    query_riwayat = "SELECT id, tanggal, berat_kg, kategori, admin_input as lokasi, foto_path FROM laporan ORDER BY id DESC LIMIT 5"
+                else:
+                    # Petugas biasa hanya melihat data berdasarkan lokasi unit yang sedang diurusi saat ini
+                    # (Menghindari petugas mengintip data milik TPS3R/BSU lain)
+                    query_riwayat = f"SELECT id, tanggal, berat_kg, kategori, admin_input as lokasi, foto_path FROM laporan WHERE admin_input = '{lokasi_pilih}' ORDER BY id DESC LIMIT 5"
+                
+                # 3. Jalankan kueri yang sudah difilter
+                df_riwayat = jalankan_query(query_riwayat)
+                
                 if not df_riwayat.empty:
                     for index, row in df_riwayat.iterrows():
                         with st.expander(f"Data {row['lokasi']} - {row['tanggal']} ({row['kategori']})"):
@@ -1049,7 +1065,7 @@ else:
                                 st.warning(f"Data ID {row['id']} telah dihapus.")
                                 st.rerun()
                 else:
-                    st.info("Belum ada riwayat input.")
+                    st.info("Belum ada riwayat input untuk lokasi ini.")
 
         # --- TAB: MANAJEMEN MASTER ---
         elif nama_tab == "⚙️ Manajemen Master":
