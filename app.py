@@ -985,7 +985,6 @@ else:
                             kategori = st.selectbox("Kategori Sampah", ["Organik", "Anorganik", "Residu/B3"])
                             berat = st.number_input("Berat Masuk (Kg)", min_value=0.0, step=1.0)
                         
-                        # Label diubah untuk menginformasikan batas maksimal ukuran
                         uploaded_file = st.file_uploader("📷 Ambil Foto Kondisi TPS (Maksimal 1 MB)", type=["jpg", "png", "jpeg"])
                         submit = st.form_submit_button("Simpan Laporan & Foto")
                         
@@ -995,32 +994,36 @@ else:
                             elif uploaded_file is None:
                                 st.error("⚠️ Wajib mengunggah foto kondisi TPS!")
                             else:
-                                # ==================================================================
-                                # VALDASI UKURAN FILE: Batasi Maksimal 1 MB
-                                # ==================================================================
                                 ukuran_file_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
                                 
                                 if ukuran_file_mb > 1.0:
                                     st.error(f"❌ Ukuran file foto terlalu besar ({ukuran_file_mb:.2f} MB)! Maksimal ukuran yang diperbolehkan adalah 1.00 MB. Silakan kecilkan resolusi kamera Anda.")
                                 else:
-                                    # Jika lolos validasi ukuran, kueri database dilanjutkan
                                     conn = sqlite3.connect('sampah.db')
                                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                                     nama_foto_baru = f"{lokasi_pilih}_{kategori}_{timestamp}.jpg"
+                                    
+                                    # 👤 AMBIL USERNAME AKTIF PETUGAS
+                                    username_aktif = st.session_state.get('username', 'unknown')
+                                    
+                                    # 💡 TRIK CERDAS: Gabungkan Nama Lokasi & Username Petugas agar terekam keduanya
+                                    # Format tersimpan: "TPS3R Berkawan | petugas1"
+                                    data_input_gabungan = f"{lokasi_pilih} | {username_aktif}"
+                                    
                                     try:
                                         conn.execute("""
                                             INSERT INTO laporan (tanggal, berat_kg, kategori, admin_input, foto_path) 
                                             VALUES (?, ?, ?, ?, ?)
-                                        """, (tgl, berat, kategori, lokasi_pilih, nama_foto_baru))
+                                        """, (tgl, berat, kategori, data_input_gabungan, nama_foto_baru))
                                         conn.commit()
-                                    
+                                        
                                         if not os.path.exists("data_foto"):
                                             os.makedirs("data_foto")
-                                        
+                                            
                                         filepath_simpan = os.path.join("data_foto", nama_foto_baru)
                                         with open(filepath_simpan, "wb") as f:
                                             f.write(uploaded_file.getvalue())
-                                        
+                                            
                                         st.success(f"✅ Data sampah di {lokasi_pilih} berhasil disimpan!")
                                         st.cache_data.clear()
                                         st.rerun()
@@ -1033,26 +1036,29 @@ else:
                 st.divider()
                 st.subheader("🕒 Riwayat Input Terakhir")
                 
-                # 1. Ambil informasi user yang sedang login dari session state
                 username_aktif = st.session_state.get('username', '')
                 role_aktif = st.session_state.get('role', '')
                 
-                # 2. Atur kueri SQL berdasarkan hak akses (Role)
                 if role_aktif == 'admin_lh':
-                    # Admin Dinas LH berhak melihat seluruh data masuk terbaru
                     query_riwayat = "SELECT id, tanggal, berat_kg, kategori, admin_input as lokasi, foto_path FROM laporan ORDER BY id DESC LIMIT 5"
                 else:
-                    # Petugas biasa hanya melihat data berdasarkan lokasi unit yang sedang diurusi saat ini
-                    # (Menghindari petugas mengintip data milik TPS3R/BSU lain)
-                    query_riwayat = f"SELECT id, tanggal, berat_kg, kategori, admin_input as lokasi, foto_path FROM laporan WHERE admin_input = '{lokasi_pilih}' ORDER BY id DESC LIMIT 5"
+                    # Amankan filter pencarian agar mencocokkan data gabungan lokasi unit yang sedang aktif
+                    query_riwayat = f"SELECT id, tanggal, berat_kg, kategori, admin_input as lokasi, foto_path FROM laporan WHERE admin_input LIKE '{lokasi_pilih}%' ORDER BY id DESC LIMIT 5"
                 
-                # 3. Jalankan kueri yang sudah difilter
                 df_riwayat = jalankan_query(query_riwayat)
                 
                 if not df_riwayat.empty:
                     for index, row in df_riwayat.iterrows():
-                        with st.expander(f"Data {row['lokasi']} - {row['tanggal']} ({row['kategori']})"):
+                        # Pecah data gabungan untuk dibersihkan saat ditampilkan di expander
+                        string_input = row['lokasi']
+                        if " | " in string_input:
+                            lokasi_tampil, petugas_tampil = string_input.split(" | ", 1)
+                        else:
+                            lokasi_tampil, petugas_tampil = string_input, "Data Lama"
+                        
+                        with st.expander(f"Data {lokasi_tampil} - {row['tanggal']} ({row['kategori']}) | 👤 {petugas_tampil}"):
                             st.write(f"Berat: {row['berat_kg']} Kg")
+                            st.write(f"Petugas Lapangan: `{petugas_tampil}`")
                             if row['foto_path'] and pd.notnull(row['foto_path']):
                                 foto_full_path = os.path.join("data_foto", row['foto_path'])
                                 if os.path.exists(foto_full_path):
