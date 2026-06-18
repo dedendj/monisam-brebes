@@ -307,27 +307,39 @@ def halaman_approval_admin():
     if pendaftar_pending.empty:
         st.info("ℹ️ Tidak ada pengajuan akun baru saat ini.")
     else:
-        for user in pendaftar_pending:
-            u_id, u_username, u_nama, u_role, u_nip, u_no_hp, u_alamat = user
+        # [PERBAIKAN UTAMA] Menggunakan .iterrows() agar iterasi baris demi baris DataFrame aman & stabil
+        for index, row in pendaftar_pending.iterrows():
+            u_id = row['id']
+            u_username = row['username']
+            u_nama = row['nama_lengkap']
+            u_role = row['role']
+            u_nip = row['nip_atau_id']
+            u_no_hp = row['no_hp']
+            u_alamat = row['alamat']
             
-            tampilan_hp = u_no_hp if u_no_hp else "Tidak dicantumkan (Akun Lama)"
-            tampilan_alamat = u_alamat if u_alamat else "Tidak dicantumkan (Akun Lama)"
+            tampilan_hp = u_no_hp if pd.notnull(u_no_hp) and u_no_hp != "" else "Tidak dicantumkan (Akun Lama)"
+            tampilan_alamat = u_alamat if pd.notnull(u_alamat) and u_alamat != "" else "Tidak dicantumkan (Akun Lama)"
             
-            with st.container():
+            # Gunakan key unik pada container agar Streamlit tidak kebingungan me-render komponen
+            with st.container(key=f"container_pending_{u_id}"):
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
                     st.markdown(f"**Nama:** {u_nama} (`{u_username}`)")
                     st.markdown(f"📱 **No. HP/WA:** {tampilan_hp} | 🏠 **Alamat:** {tampilan_alamat}")
-                    st.caption(f"NIP/ID: {u_nip} | Diajukan sebagai: **{u_role.replace('_', ' ').title()}**")
+                    
+                    role_bersih = str(u_role).replace('_', ' ').title() if u_role else "Petugas"
+                    st.caption(f"NIP/ID: {u_nip} | Diajukan sebagai: **{role_bersih}**")
                 with col2:
-                    if st.button("Setujui ✔️", key=f"app_{u_id}"):
+                    if st.button("Setujui ✔️", key=f"app_{u_id}", type="primary", use_container_width=True):
                         update_user_status(u_id, 'approved')
                         st.success(f"Akun {u_username} disetujui!")
+                        st.cache_data.clear() # Bersihkan cache agar data fresh kembali
                         st.rerun()
                 with col3:
-                    if st.button("Tolak ❌", key=f"rej_{u_id}"):
+                    if st.button("Tolak ❌", key=f"rej_{u_id}", type="secondary", use_container_width=True):
                         update_user_status(u_id, 'rejected')
                         st.warning(f"Akun {u_username} ditolak.")
+                        st.cache_data.clear() # Bersihkan cache agar data fresh kembali
                         st.rerun()
             st.markdown("---")
 
