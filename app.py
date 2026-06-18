@@ -53,7 +53,37 @@ def init_db_otomatis():
     with sqlite3.connect('sampah.db') as conn:
         cursor = conn.cursor()
         
-        # 1. Buat tabel user baru sementara dengan struktur ID Auto-Increment yang sempurna
+        # ----------------------------------------------------------------------
+        # [PENYELAMATAN UTAMA] 1. Buat Tabel Lokasi (Agar Kueri Peta Tidak Crash)
+        # ----------------------------------------------------------------------
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS lokasi (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama_unit TEXT NOT NULL,
+            lat REAL,
+            lon REAL,
+            tipe TEXT,
+            kecamatan TEXT
+        )
+        """)
+        conn.commit()
+        
+        # ----------------------------------------------------------------------
+        # [PENYELAMATAN KEDUA] 2. Buat Tabel Laporan (Agar Riwayat Input Tidak Crash)
+        # ----------------------------------------------------------------------
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS laporan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tanggal TEXT,
+            berat_kg REAL,
+            kategori TEXT,
+            admin_input TEXT,
+            foto_path TEXT
+        )
+        """)
+        conn.commit()
+        
+        # 3. Buat tabel user baru sementara dengan struktur ID Auto-Increment yang sempurna
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS users_baru (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,7 +100,7 @@ def init_db_otomatis():
         """)
         conn.commit()
         
-        # 2. Migrasi data dari tabel lama jika tabel 'users' sudah pernah ada sebelumnya
+        # 4. Migrasi data dari tabel lama jika tabel 'users' sudah pernah ada sebelumnya
         try:
             # Cek apakah tabel users lama ada isinya
             cursor.execute("SELECT username, password_hash, role, nama_lengkap, nip_atau_id, no_hp, alamat, status, foto_profil FROM users")
@@ -90,7 +120,7 @@ def init_db_otomatis():
             # Jika tabel 'users' lama belum ada, tidak masalah (berarti instalasi pertama)
             pass
 
-        # 3. Hapus tabel lama dan ganti nama tabel baru menjadi 'users'
+        # 5. Hapus tabel lama dan ganti nama tabel baru menjadi 'users'
         try:
             cursor.execute("DROP TABLE IF EXISTS users")
             cursor.execute("ALTER TABLE users_baru RENAME TO users")
@@ -98,7 +128,7 @@ def init_db_otomatis():
         except sqlite3.OperationalError:
             pass
         
-        # 4. 🛡️ AMANKAN DATA ADMIN: Buat baru jika belum ada sama sekali
+        # 6. 🛡️ AMANKAN DATA ADMIN: Buat baru jika belum ada sama sekali
         password_resmi = "lh2026!".encode('utf-8')
         hashed_password = bcrypt.hashpw(password_resmi, bcrypt.gensalt()).decode('utf-8')
         
@@ -118,6 +148,7 @@ def init_db_otomatis():
                 WHERE username = 'dinas_lh'
             """, (hashed_password, 'admin_lh', 'approved', 'Admin Dinas LH'))
             conn.commit()
+
 # Jalankan fungsi perbaikan database otomatis
 init_db_otomatis()
 def register_user_with_pending(username, nama, password, role, nip_atau_id, no_hp, alamat):
