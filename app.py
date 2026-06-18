@@ -934,10 +934,34 @@ else:
         elif nama_tab == "📊 Laporan Berkala":
             with tabs[i]:
                 st.subheader("📊 Laporan Pengelolaan Sampah Berkala")
+                # ==============================================================================
+                # PERBAIKAN KUERI: Memecah data gabungan "Lokasi | Petugas" secara real-time
+                # agar relasi JOIN ke tabel lokasi tetap aman dan presisi
+                # ==============================================================================
                 df_all = jalankan_query("""
-                    SELECT l.id, l.tanggal, l.berat_kg, l.kategori, l.admin_input as lokasi, loc.kecamatan 
+                    SELECT 
+                        l.id, 
+                        l.tanggal, 
+                        l.berat_kg, 
+                        l.kategori,
+                        -- Jika ada pembatas ' | ', ambil teks sebelum pembatas sebagai nama lokasi
+                        CASE 
+                            WHEN l.admin_input LIKE '% | %' THEN SUBSTR(l.admin_input, 1, INSTR(l.admin_input, ' | ') - 1)
+                            ELSE l.admin_input 
+                        END AS lokasi,
+                        -- Jika ada pembatas ' | ', ambil teks setelah pembatas sebagai nama petugas
+                        CASE 
+                            WHEN l.admin_input LIKE '% | %' THEN SUBSTR(l.admin_input, INSTR(l.admin_input, ' | ') + 3)
+                            ELSE 'Petugas Lapangan' 
+                        END AS petugas,
+                        loc.kecamatan 
                     FROM laporan l
-                    JOIN lokasi loc ON l.admin_input = loc.nama_unit
+                    JOIN lokasi loc ON (
+                        CASE 
+                            WHEN l.admin_input LIKE '% | %' THEN SUBSTR(l.admin_input, 1, INSTR(l.admin_input, ' | ') - 1)
+                            ELSE l.admin_input 
+                        END
+                    ) = loc.nama_unit
                 """)
                 
                 if not df_all.empty:
@@ -962,10 +986,16 @@ else:
                     st.write("---")
                     total_berat = df_filtered['berat_kg'].sum()
                     st.metric(f"Total Sampah ({sel_kec})", f"{total_berat:,.1f} Kg")
-                    st.dataframe(df_filtered[['tanggal', 'kecamatan', 'lokasi', 'kategori', 'berat_kg']], 
-                                 use_container_width=True, hide_index=True)
+                    # ==============================================================================
+                    # PERBAIKAN TAMPILAN: Menambahkan kolom 'petugas' ke dalam tabel dataframe
+                    # ==============================================================================
+                    st.dataframe(
+                        df_filtered[['tanggal', 'kecamatan', 'lokasi', 'petugas', 'kategori', 'berat_kg']], 
+                        use_container_width=True, 
+                        hide_index=True
+                    )
                 else:
-                    st.info("Belum ada data laporan untuk periode ini.")
+                    st.info("Belum ada data laporan untuk periode ini."))
 
         # --- TAB: INPUT DATA ---
         elif nama_tab == "📝 Input Data":
