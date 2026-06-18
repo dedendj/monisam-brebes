@@ -107,32 +107,42 @@ def init_db_otomatis():
 # Jalankan fungsi perbaikan database otomatis
 init_db_otomatis()
 def register_user_with_pending(username, nama, password, role, nip_atau_id, no_hp, alamat):
+    # 1. Bersihkan spasi liar di awal/akhir dan paksa huruf kecil agar konsisten
+    username_clean = str(username).strip().lower()
+    nama_clean = str(nama).strip()
+    nip_clean = str(nip_atau_id).strip()
+    no_hp_clean = str(no_hp).strip()
+    alamat_clean = str(alamat).strip()
+    
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
     with sqlite3.connect('sampah.db') as conn:
         cursor = conn.cursor()
         
-        # --- STRATEGI JAMINAN: Paksa buat kolom jika belum ada ---
-        try:
-            cursor.execute("ALTER TABLE users ADD COLUMN no_hp TEXT")
-        except sqlite3.OperationalError:
-            pass # Sudah ada kolom hp
+        # --- STRATEGI JAMINAN: Pastikan kolom tambahan aman ---
+        for col_name in ["no_hp", "alamat"]:
+            try:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} TEXT")
+            except sqlite3.OperationalError:
+                pass 
+                
+        # 2. Lakukan pengecekan username secara manual sebelum INSERT dijalankan
+        cursor.execute("SELECT id FROM users WHERE username = ?", (username_clean,))
+        if cursor.fetchone() is not None:
+            st.error("⚠️ Username sudah terdaftar! Silakan gunakan username lain.")
+            return False
             
         try:
-            cursor.execute("ALTER TABLE users ADD COLUMN alamat TEXT")
-        except sqlite3.OperationalError:
-            pass # Sudah ada kolom alamat
-            
-        try:
-            # Jalankan insert data
+            # Jalankan insert data dengan variabel yang sudah dibersihkan
             cursor.execute("""
                 INSERT INTO users (username, nama_lengkap, password_hash, role, nip_atau_id, no_hp, alamat, status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-            """, (username, nama, hashed_password, role, nip_atau_id, no_hp, alamat))
+            """, (username_clean, nama_clean, hashed_password, role, nip_clean, no_hp_clean, alamat_clean))
             conn.commit()
             return True
-        except sqlite3.IntegrityError:
-            st.error("⚠️ Username sudah terdaftar! Silakan gunakan username lain.")
+        except sqlite3.IntegrityError as e:
+            # Jika lolos cek manual di atas tapi tetap IntegrityError, berarti ada kolom lain yang bermasalah (constraint violation)
+            st.error(f"⚠️ Gagal mendaftar karena batasan data (Integrity Error): {e}")
             return False
         except Exception as e:
             st.error(f"❌ Gagal menyimpan ke database: {e}")
