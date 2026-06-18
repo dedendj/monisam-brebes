@@ -61,7 +61,15 @@ def init_db_otomatis():
         )
         """)
         conn.commit()
-        
+
+        # [PERBAIKAN UTAMA]: Migrasi kolom ID jika tabel lama belum memilikinya
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN id INTEGER PRIMARY KEY AUTOINCREMENT")
+            conn.commit()
+        except sqlite3.OperationalError:
+            # Mengabaikan error jika kolom 'id' sudah ada sebelumnya
+            pass
+            
         # 2. Migrasi kolom wajib (jika ada yang kurang)
         semua_kolom_wajib = [
             ("password_hash", "TEXT"),
@@ -103,7 +111,9 @@ def init_db_otomatis():
                 WHERE username = 'dinas_lh'
             """, (hashed_password, 'admin_lh', 'approved', 'Admin Dinas LH'))
             conn.commit()
-
+    except sqlite3.OperationalError:
+            # Berjaga-jaga jika kolom password_hash belum siap saat inisialisasi pertama
+            pass
 # Jalankan fungsi perbaikan database otomatis
 init_db_otomatis()
 def register_user_with_pending(username, nama, password, role, nip_atau_id, no_hp, alamat):
