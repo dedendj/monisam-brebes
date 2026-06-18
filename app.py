@@ -399,7 +399,7 @@ def halaman_approval_admin():
             st.markdown("---")
 
     # ==========================================================================
-    # BAGIAN B: KONTROL STATUS & DAFTAR OPERATOR (AKTIF & NON-AKTIF)
+    # BAGIAN B: KENDALI STATUS & DAFTAR OPERATOR (AKTIF & NON-AKTIF)
     # ==========================================================================
     st.write("#") 
     st.subheader("🗂️ Kontrol Status & Daftar Operator MoniSa")
