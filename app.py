@@ -995,7 +995,7 @@ else:
                         hide_index=True
                     )
                 else:
-                    st.info("Belum ada data laporan untuk periode ini."))
+                    st.info("Belum ada data laporan untuk periode ini.")
 
         # --- TAB: INPUT DATA ---
         elif nama_tab == "📝 Input Data":
