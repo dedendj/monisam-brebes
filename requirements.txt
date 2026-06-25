@@ -44,3 +44,5 @@ streamlit-folium
 psycopg2-binary
 
 bcrypt
+
+psycopg2-binary
