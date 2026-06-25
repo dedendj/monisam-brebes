@@ -58,6 +58,11 @@ def jalankan_query(query, params=None, ambil_data=True):
     """Fungsi universal untuk menjalankan query PostgreSQL menggunakan Streamlit Secrets"""
     db_url = st.secrets["postgres"]["url"]
     conn = None
+    
+    # Proteksi otomatis jika params yang dimasukkan bukan berbentuk tuple/list
+    if params is not None and not isinstance(params, (tuple, list)):
+        params = (params,)
+        
     try:
         conn = psycopg2.connect(db_url)
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -550,7 +555,7 @@ else:
                     SELECT l.nama_unit, l.lat, l.lon, l.tipe, l.kecamatan,
                     COALESCE(SUM(lap.berat_kg), 0) / 1000.0 as total_ton
                     FROM lokasi l
-                    LEFT JOIN laporan lap ON lap.admin_input LIKE CONCAT(l.nama_unit, '%')
+                    LEFT JOIN laporan lap ON lap.admin_input LIKE CONCAT(l.nama_unit, '%%')
                     GROUP BY l.id, l.nama_unit, l.lat, l.lon, l.tipe, l.kecamatan
                 """)
 
