@@ -551,15 +551,19 @@ else:
                 st.subheader("📍 Peta Sebaran Lokasi Infrastruktur & Bank Sampah Kabupaten Brebes")
                 render_ikhtisar_sampah()
                 
+                # PERBAIKAN: Menggunakan SPLIT_PART untuk memisahkan nama lokasi dengan aman di PostgreSQL
+                # Dan menggunakan %% agar driver Python tidak bingung membaca tanda persen LIKE
                 df_peta = jalankan_query("""
                     SELECT l.nama_unit, l.lat, l.lon, l.tipe, l.kecamatan,
-                    COALESCE(SUM(lap.berat_kg), 0) / 1000.0 as total_ton
+                           COALESCE(SUM(lap.berat_kg), 0) / 1000.0 as total_ton
                     FROM lokasi l
-                    LEFT JOIN laporan lap ON lap.admin_input LIKE CONCAT(l.nama_unit, '%%')
+                    LEFT JOIN laporan lap ON SPLIT_PART(lap.admin_input, ' | ', 1) = l.nama_unit
                     GROUP BY l.id, l.nama_unit, l.lat, l.lon, l.tipe, l.kecamatan
                 """)
 
-                if not df_peta.empty:
+               if not df_peta.empty:
+                    # Amankan koordinat kosong atau bernilai NaN agar folium tidak crash
+                    df_peta = df_peta.dropna(subset=['lat', 'lon'])
                     m = folium.Map(location=[-6.9700, 108.9200], zoom_start=11)
                     def get_color(tipe):
                         if tipe == 'TPA': return '#FF0000'
