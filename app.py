@@ -477,7 +477,18 @@ with st.expander("📝 Klik untuk Membaca Sambutan Kepala Dinas"):
     col_kadis_foto, col_teks_sambutan = st.columns([1, 5])
     with col_kadis_foto: render_media_fixed('kadin.jpg', is_gif=False)
     with col_teks_sambutan:
-        st.markdown("<p style='font-style: italic; font-size: 16px;'>\"Melalui Aplikasi MoniSa, kita wujudkan Brebes yang bersih dan terdigitalisasi...\"</p>", unsafe_allow_html=True)
+        # Gunakan CSS inline untuk mengatur perataan teks agar lurus di tengah foto
+        st.markdown("""
+            <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; min-height: 150px; padding-left: 15px;">
+                <p style="font-style: italic; color: #333; font-size: 16px; margin: 0 0 10px 0;">
+                    "Melalui MoniSam, kita wujudkan Brebes yang bersih dan terdigitalisasi.<br>
+                    Data sampah yang akurat adalah langkah awal pelestarian lingkungan."
+                </p>
+                <p style="font-weight: bold; margin: 0; color: #1B5E20; font-size: 15px;">
+                    - Kepala Dinas Lingkungan Hidup Kab. Brebes -
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
 
 # ==============================================================================
 # 6. SIDEBAR CONTROLLER (SISTEM LOGIN & LUPA PASSWORD)
