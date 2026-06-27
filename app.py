@@ -585,16 +585,26 @@ else:
                     st_folium(m, width=1200, height=500, returned_objects=[])
                     st.dataframe(df_peta[['nama_unit', 'kecamatan', 'tipe', 'total_ton']], use_container_width=True)
 
-        elif nama_tab == "📊 Laporan Berkala":
+       elif nama_tab == "📊 Laporan Berkala":
             with tabs[i]:
                 st.subheader("📊 Laporan Pengelolaan Sampah Berkala")
+                
+                # Menggunakan SPLIT_PART yang jauh lebih aman & efisien di PostgreSQL
+                # Serta mengubah % menjadi %% agar tidak dibaca sebagai variabel input oleh psycopg2
                 df_all = jalankan_query("""
-                    SELECT l.id, l.tanggal, l.berat_kg, l.kategori, COALESCE(l.sub_kategori, '-') as sub_kategori,
-                           CASE WHEN l.admin_input LIKE '% | %' THEN SUBSTR(l.admin_input, 1, POSITION(' | ' IN l.admin_input) - 1) ELSE l.admin_input END AS lokasi,
-                           CASE WHEN l.admin_input LIKE '% | %' THEN SUBSTR(l.admin_input, POSITION(' | ' IN l.admin_input) + 3) ELSE 'Petugas Lapangan' END AS petugas,
+                    SELECT l.id, 
+                           l.tanggal, 
+                           l.berat_kg, 
+                           l.kategori, 
+                           COALESCE(l.sub_kategori, '-') as sub_kategori,
+                           SPLIT_PART(l.admin_input, ' | ', 1) AS lokasi,
+                           CASE 
+                               WHEN l.admin_input LIKE '%% | %%' THEN SPLIT_PART(l.admin_input, ' | ', 2)
+                               ELSE 'Petugas Lapangan' 
+                           END AS petugas,
                            loc.kecamatan 
                     FROM laporan l
-                    JOIN lokasi loc ON (CASE WHEN l.admin_input LIKE '% | %' THEN SUBSTR(l.admin_input, 1, POSITION(' | ' IN l.admin_input) - 1) ELSE l.admin_input END) = loc.nama_unit
+                    JOIN lokasi loc ON SPLIT_PART(l.admin_input, ' | ', 1) = loc.nama_unit
                 """)
                 
                 if not df_all.empty:
@@ -612,7 +622,8 @@ else:
                         
                     st.metric(f"Total Sampah ({sel_kec})", f"{df_filtered['berat_kg'].sum():,.1f} Kg")
                     st.dataframe(df_filtered[['tanggal', 'kecamatan', 'lokasi', 'petugas', 'kategori', 'sub_kategori', 'berat_kg']], use_container_width=True, hide_index=True)
-
+                else:
+                    st.info("ℹ️ Belum ada data laporan berkala yang sinkron dengan master data lokasi unit.")
         elif nama_tab == "📝 Input Data":
             with tabs[i]:
                 st.subheader("📝 Form Input Sampah Harian")
