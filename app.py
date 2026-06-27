@@ -624,6 +624,7 @@ else:
                     st.dataframe(df_filtered[['tanggal', 'kecamatan', 'lokasi', 'petugas', 'kategori', 'sub_kategori', 'berat_kg']], use_container_width=True, hide_index=True)
                 else:
                     st.info("ℹ️ Belum ada data laporan berkala yang sinkron dengan master data lokasi unit.")
+                    
         elif nama_tab == "📝 Input Data":
             with tabs[i]:
                 st.subheader("📝 Form Input Sampah Harian")
