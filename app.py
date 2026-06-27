@@ -585,7 +585,7 @@ else:
                     st_folium(m, width=1200, height=500, returned_objects=[])
                     st.dataframe(df_peta[['nama_unit', 'kecamatan', 'tipe', 'total_ton']], use_container_width=True)
 
-       elif nama_tab == "📊 Laporan Berkala":
+        elif nama_tab == "📊 Laporan Berkala":
             with tabs[i]:
                 st.subheader("📊 Laporan Pengelolaan Sampah Berkala")
                 
