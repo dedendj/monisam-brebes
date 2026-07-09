@@ -133,7 +133,10 @@ def render_ikhtisar_sampah():
 # ==============================================================================
 # 2. SINKRONISASI DATABASE POSTGRESQL AUTOMATIC INITIALIZATION
 # ==============================================================================
+
+@st.cache_resource
 def init_db_otomatis_postgres():
+    """Fungsi ini dibungkus cache_resource agar HANYA berjalan 1x saat aplikasi start"""
     # 1. Buat Tabel Lokasi
     jalankan_query("""
     CREATE TABLE IF NOT EXISTS lokasi (
@@ -192,8 +195,10 @@ def init_db_otomatis_postgres():
             INSERT INTO users (username, nama_lengkap, password_hash, role, nip_atau_id, no_hp, alamat, status) 
             VALUES (%s, %s, %s, %s, %s, %s, %s, 'approved')
         """, ('dinas_lh', 'Admin Dinas LH', hashed_password, 'admin_lh', '198501012010011001', '08123456789', 'Kantor DLH Kabupaten Brebes'), ambil_data=False)
+    
+    return True # Mengembalikan nilai status sukses cache
 
-# Eksekusi Inisialisasi Cloud DB
+# Eksekusi Inisialisasi Cloud DB (Sekarang aman dipanggil di sini karena sudah di-cache)
 init_db_otomatis_postgres()
 
 def register_user_with_pending(username, nama, password, role, nip_atau_id, no_hp, alamat):
