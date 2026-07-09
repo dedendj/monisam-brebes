@@ -428,8 +428,33 @@ def halaman_profil_user():
                 alamat_baru = st.text_area("Alamat Lengkap Baru", value=alamat_sekarang if alamat_sekarang != "-" else "")
                 file_foto = st.file_uploader("Pilih Foto (Maks 500 KB)", type=["jpg", "jpeg", "png"])
                 
+                # --- TAMBAHAN FITUR EDIT PASSWORD ---
+                st.markdown("---")
+                st.markdown("🔒 **Ganti Password (Kosongkan jika tidak ingin mengubah password)**")
+                pass_baru = st.text_input("Password Baru", type="password", help="Minimal 6 karakter")
+                konfirmasi_pass_baru = st.text_input("Ulangi Password Baru", type="password")
+                # ------------------------------------
+                
                 btn_simpan = st.form_submit_button("💾 Simpan Perubahan")
                 if btn_simpan:
+                    # Validasi password jika user mengetik sesuatu di kolom password
+                    update_password_query = ""
+                    params_password = []
+                    
+                    if pass_baru.strip():
+                        if len(pass_baru) < 6:
+                            st.error("❌ Password baru minimal harus 6 karakter!")
+                            st.stop()
+                        if pass_baru != konfirmasi_pass_baru:
+                            st.error("❌ Password baru dan konfirmasi password tidak cocok!")
+                            st.stop()
+                        
+                        # Jika validasi lolos, lakukan hashing password baru
+                        hashed_password = bcrypt.hashpw(pass_baru.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                        update_password_query = ", password_hash = %s"
+                        params_password = [hashed_password]
+
+                    # Proses handling foto profil
                     nama_file_foto = user_data.get('foto_profil')
                     if file_foto is not None and file_foto.size <= 500 * 1024:
                         if not os.path.exists("data_profil"): os.makedirs("data_profil")
@@ -438,11 +463,17 @@ def halaman_profil_user():
                         with open(os.path.join("data_profil", nama_file_foto), "wb") as f:
                             f.write(file_foto.getvalue())
                     
-                    jalankan_query("""
-                        UPDATE users SET nama_lengkap = %s, no_hp = %s, alamat = %s, foto_profil = %s WHERE username = %s
-                    """, (nama_baru.strip(), no_hp_baru.strip(), alamat_baru.strip(), nama_file_foto, username_aktif), ambil_data=False)
+                    # Gabungkan query utama dengan query password dinamis jika ada perubahan password
+                    query_update = f"""
+                        UPDATE users 
+                        SET nama_lengkap = %s, no_hp = %s, alamat = %s, foto_profil = %s {update_password_query} 
+                        WHERE username = %s
+                    """
+                    params_gabungan = [nama_baru.strip(), no_hp_baru.strip(), alamat_baru.strip(), nama_file_foto] + params_password + [username_aktif]
+                    
+                    jalankan_query(query_update, params_gabungan, ambil_data=False)
                     st.session_state['nama_user'] = nama_baru.strip()
-                    st.success("✅ Profil berhasil diperbarui!")
+                    st.success("✅ Profil dan informasi akun berhasil diperbarui!")
                     st.rerun()
 
         st.write("---")
@@ -452,7 +483,6 @@ def halaman_profil_user():
             st.session_state['nama_user'] = 'Pengunjung'
             st.session_state['username'] = ""
             st.rerun()
-
 # ==============================================================================
 # 5. CORE NAVIGATOR CONTROL & HEADER RENDERING
 # ==============================================================================
