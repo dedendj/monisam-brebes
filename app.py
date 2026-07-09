@@ -5,6 +5,7 @@ import os
 import io
 import base64
 import bcrypt  # Pastikan sudah install: pip install bcrypt
+import plotly.express as px
 import folium
 from streamlit_folium import st_folium
 
@@ -94,7 +95,7 @@ def get_list_lokasi_by_kecamatan(kecamatan):
     return []
 
 def render_ikhtisar_sampah():
-    """Fungsi helper untuk menampilkan KPI ringkasan sampah di atas peta"""
+    """Fungsi helper untuk menampilkan KPI ringkasan sampah & Grafik Komposisi"""
     st.markdown("#### 📊 Ikhtisar Pengelolaan Sampah Kabupaten Brebes")
     
     df_summary = jalankan_query("SELECT COUNT(id) as total_laporan, SUM(berat_kg) as total_berat FROM laporan")
@@ -121,15 +122,52 @@ def render_ikhtisar_sampah():
     with col_m2: st.metric(label="📍 Unit Infrastruktur Aktif", value=f"{total_lokasi} Titik")
     with col_m3: st.metric(label="📋 Total Laporan Masuk", value=f"{total_laporan} Data")
         
-    st.markdown("<small style='color:gray;'><b>🗂️ Komposisi Sampah Berdasarkan Jenis Utama:</b></small>", unsafe_allow_html=True)
-    col_c1, col_c2, col_c3, col_c4, col_c5 = st.columns(5)
-    with col_c1: st.metric(label="🍏 Organik", value=f"{organik:,.1f} Kg")
-    with col_c2: st.metric(label="🍾 Anorganik", value=f"{anorganik:,.1f} Kg")
-    with col_c3: st.metric(label="🗑️ Residu", value=f"{residu:,.1f} Kg")
-    with col_c4: st.metric(label="🚨 B3", value=f"{b3:,.1f} Kg")
-    with col_c5: st.metric(label="📦 Lainnya", value=f"{lainnya:,.1f} Kg")
+    st.markdown("---")
+    
+    # --- TAMBAHAN GRAFIK VISUALISASI ---
+    col_grafik, col_metrik_detail = st.columns([5, 4])
+    
+    with col_grafik:
+        st.markdown("<b style='color:#1B5E20;'>📊 Visualisasi Proporsi Jenis Sampah</b>", unsafe_allow_html=True)
+        if not df_kategori.empty and total_berat_kg > 0:
+            # Membuat Pie Chart menggunakan Plotly Express
+            fig = px.pie(
+                df_kategori, 
+                values='berat', 
+                names='kategori',
+                color='kategori',
+                color_discrete_map={
+                    'Organik': '#2E7D32',      # Hijau Tua
+                    'Anorganik': '#1976D2',    # Biru
+                    'Residu': '#757575',       # Abu-abu
+                    'B3': '#D32F2F',           # Merah
+                    'Lainnya': '#FFA000'       # Jingga/Kuning
+                },
+                hole=0.4 # Membuatnya jadi Donut Chart agar lebih modern
+            )
+            fig.update_traces(textposition='inside', textinfo='percent+label')
+            fig.update_layout(
+                margin=dict(l=20, r=20, t=20, b=20),
+                height=280,
+                showlegend=True
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("ℹ️ Belum ada data berat sampah untuk membuat grafik.")
+            
+    with col_metrik_detail:
+        st.markdown("<b style='color:gray;'>🗂️ Detail Berat Komposisi:</b>", unsafe_allow_html=True)
+        st.write("") # Spasi
+        st.metric(label="🍏 Organik", value=f"{organik:,.1f} Kg")
+        st.metric(label="🍾 Anorganik", value=f"{anorganik:,.1f} Kg")
+        
+        # Buat sub-kolom kecil di bawah agar muat banyak
+        sub_c1, sub_c2, sub_c3 = st.columns(3)
+        with sub_c1: st.metric(label="🗑️ Residu", value=f"{residu:,.1f} Kg")
+        with sub_c2: st.metric(label="🚨 B3", value=f"{b3:,.1f} Kg")
+        with sub_c3: st.metric(label="📦 Lainnya", value=f"{lainnya:,.1f} Kg")
+        
     st.write("---")
-
 # ==============================================================================
 # 2. SINKRONISASI DATABASE POSTGRESQL AUTOMATIC INITIALIZATION
 # ==============================================================================
