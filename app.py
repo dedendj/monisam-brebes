@@ -95,7 +95,7 @@ def get_list_lokasi_by_kecamatan(kecamatan):
     return []
 
 def render_ikhtisar_sampah():
-    """Fungsi helper untuk menampilkan KPI ringkasan sampah & Grafik Komposisi"""
+    """Fungsi helper untuk menampilkan KPI ringkasan sampah & Grafik Komposisi dengan Visual Refinement"""
     st.markdown("#### 📊 Ikhtisar Pengelolaan Sampah Kabupaten Brebes")
     
     df_summary = jalankan_query("SELECT COUNT(id) as total_laporan, SUM(berat_kg) as total_berat FROM laporan")
@@ -117,20 +117,24 @@ def render_ikhtisar_sampah():
             elif kat == 'B3': b3 = row['berat']
             else: lainnya += row['berat']
             
+    # --- REFINEMENT METRIK UTAMA ---
     col_m1, col_m2, col_m3 = st.columns(3)
-    with col_m1: st.metric(label="♻️ Total Sampah Terkelola", value=f"{total_berat_ton:,.2f} Ton")
-    with col_m2: st.metric(label="📍 Unit Infrastruktur Aktif", value=f"{total_lokasi} Titik")
-    with col_m3: st.metric(label="📋 Total Laporan Masuk", value=f"{total_laporan} Data")
+    with col_m1: 
+        st.metric(label="♻️ Total Sampah Terkelola", value=f"{total_berat_ton:,.2f} Ton")
+    with col_m2: 
+        st.metric(label="📍 Unit Infrastruktur Aktif", value=f"{total_lokasi} Titik")
+    with col_m3: 
+        st.metric(label="📋 Total Laporan Masuk", value=f"{total_laporan} Data")
         
     st.markdown("---")
     
-    # --- TAMBAHAN GRAFIK VISUALISASI ---
-    col_grafik, col_metrik_detail = st.columns([5, 4])
+    # --- REFINEMENT GRAFIK & DETAIL KOMPOSISI ---
+    # Mengubah rasio kolom menjadi [5, 3] agar grafik donut lebih proporsional dan detail kanan tidak menumpuk kaku
+    col_grafik, col_metrik_detail = st.columns([5, 3])
     
     with col_grafik:
-        st.markdown("<b style='color:#1B5E20;'>📊 Visualisasi Proporsi Jenis Sampah</b>", unsafe_allow_html=True)
+        st.markdown("<b style='color:#2E7D32; font-size:16px;'>📊 Proporsi Kategori Sampah</b>", unsafe_allow_html=True)
         if not df_kategori.empty and total_berat_kg > 0:
-            # Membuat Pie Chart menggunakan Plotly Express
             fig = px.pie(
                 df_kategori, 
                 values='berat', 
@@ -143,29 +147,31 @@ def render_ikhtisar_sampah():
                     'B3': '#D32F2F',           # Merah
                     'Lainnya': '#FFA000'       # Jingga/Kuning
                 },
-                hole=0.4 # Membuatnya jadi Donut Chart agar lebih modern
+                hole=0.5 # Menambah diameter lubang donut agar lebih modern/clean
             )
-            fig.update_traces(textposition='inside', textinfo='percent+label')
+            fig.update_traces(textposition='inside', textinfo='percent')
             fig.update_layout(
-                margin=dict(l=20, r=20, t=20, b=20),
-                height=280,
-                showlegend=True
+                margin=dict(l=10, r=10, t=10, b=10),
+                height=300,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5) # Memindahkan legend ke bawah horizontal agar space kiri-kanan lega
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("ℹ️ Belum ada data berat sampah untuk membuat grafik.")
             
     with col_metrik_detail:
-        st.markdown("<b style='color:gray;'>🗂️ Detail Berat Komposisi:</b>", unsafe_allow_html=True)
-        st.write("") # Spasi
-        st.metric(label="🍏 Organik", value=f"{organik:,.1f} Kg")
-        st.metric(label="🍾 Anorganik", value=f"{anorganik:,.1f} Kg")
+        st.markdown("<b style='color:gray; font-size:16px;'>🗂️ Detail Berat Komposisi:</b>", unsafe_allow_html=True)
         
-        # Buat sub-kolom kecil di bawah agar muat banyak
-        sub_c1, sub_c2, sub_c3 = st.columns(3)
-        with sub_c1: st.metric(label="🗑️ Residu", value=f"{residu:,.1f} Kg")
-        with sub_c2: st.metric(label="🚨 B3", value=f"{b3:,.1f} Kg")
-        with sub_c3: st.metric(label="📦 Lainnya", value=f"{lainnya:,.1f} Kg")
+        # Membuat tampilan boks rangkuman mini dengan HTML statis bawaan Streamlit
+        st.markdown(f"""
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; border-left: 5px solid #2E7D32; margin-top: 10px;">
+                <p style="margin:0; font-size:14px; color: #2E7D32;"><b>🍏 Organik:</b> {organik:,.1f} Kg</p>
+                <p style="margin:5px 0 0 0; font-size:14px; color: #1976D2;"><b>🍾 Anorganik:</b> {anorganik:,.1f} Kg</p>
+                <p style="margin:5px 0 0 0; font-size:14px; color: #757575;"><b>🗑️ Residu:</b> {residu:,.1f} Kg</p>
+                <p style="margin:5px 0 0 0; font-size:14px; color: #D32F2F;"><b>🚨 B3:</b> {b3:,.1f} Kg</p>
+                <p style="margin:5px 0 0 0; font-size:14px; color: #FFA000;"><b>📦 Lainnya:</b> {lainnya:,.1f} Kg</p>
+            </div>
+        """, unsafe_allow_html=True)
         
     st.write("---")
 # ==============================================================================
